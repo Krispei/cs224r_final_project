@@ -1,0 +1,22 @@
+name: cs224rFP
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - numpy
+  - scikit-learn
+  - matplotlib
+  - pip
+  - pip:
+      - bitsandbytes
+      - wandb
+      - torch --index-url https://download.pytorch.org/whl/cu121
+      - torchvision --index-url https://download.pytorch.org/whl/cu121
+      - torchaudio --index-url https://download.pytorch.org/whl/cu121
+      - transformers
+      - trl
+      - datasets
+      - peft
+      - accelerate
+      - vllm
