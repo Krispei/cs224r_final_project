@@ -5,6 +5,9 @@ import matplotlib.pyplot as plt
 tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2.5-Math-1.5B")
 sft_ds = load_from_disk("./data/sft_train")
 
+tokenizer.eos_token = "<|im_end|>"
+tokenizer.pad_token = "<|im_end|>"
+
 def tokenize_and_mask(example, max_len=512):
     '''
         Tokenizes and masks our input data to get it prepared for SFT.

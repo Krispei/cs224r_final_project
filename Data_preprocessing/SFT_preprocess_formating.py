@@ -18,7 +18,7 @@ def extract_final_answer(answer: str) -> str:
     ans_index = answer.find("####")
 
     if (ans_index == -1):
-        raise "Answer Not found"
+        raise ValueError("Answer not found")
     else:
         return answer[ans_index+4:].strip()
 
