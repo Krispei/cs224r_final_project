@@ -160,6 +160,53 @@ def evaluate_sft():
     print(f"GSM8K test accuracy: {accuracy:.2f} ({correct}/{len(test_ds)})")
     return accuracy
 
+@app.function(gpu="A100", image=image, volumes={"/data": volume}, timeout=1200)
+def calc_avg_steps():
+    import re
+    from datasets import load_dataset
+    from vllm import LLM, SamplingParams
+
+    llm = LLM(model="/data/checkpoints/sft_final", enforce_eager=True)
+    params = SamplingParams(
+        temperature=0.7,
+        max_tokens=512,
+        stop=["<|im_end|>"]
+    )
+
+    #just take first 100 questions
+    train_ds = load_dataset("openai/gsm8k", "main")["train"].select(range(100))
+
+    SYSTEM  = "Please reason step by step, and put your final answer within \\boxed{}."
+
+    prompts = [
+        f"<|im_start|>system\n{SYSTEM}<|im_end|>\n"
+        f"<|im_start|>user\n{example['question']}<|im_end|>\n"
+        f"<|im_start|>assistant\n"
+        for example in train_ds
+    ]
+
+    outputs = llm.generate(prompts, params)
+
+    total_steps = 0
+    num_correct = 0
+
+    for example, output in zip(train_ds, outputs):
+        response = output.outputs[0].text
+        match = re.search(r"\\boxed\{([^}]+)\}", response)
+        predicted = match.group(1).strip() if match else ""
+        ground_truth = example["answer"].split("####")[1].strip()
+
+        if predicted == ground_truth:
+            # Im only going to take the correct answers to find the number of steps
+            num_correct += 1
+            num_steps = len([s.strip() for s in response.split('\n') if s.strip() != ""])
+            total_steps += num_steps
+
+    avg_steps = total_steps / num_correct
+    print(f"GSM8K average response step length: {avg_steps})")
+    return avg_steps
+
 @app.local_entrypoint()
 def main():
-    evaluate_sft.remote()
+    #evaluate_sft.remote()
+    calc_avg_steps.remote()
