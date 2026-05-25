@@ -11,7 +11,7 @@ image = (
         "pip install torch==2.4.0 --index-url https://download.pytorch.org/whl/cu121"
     )
     .pip_install([
-         "transformers==4.46.0", "datasets", "accelerate", "wandb", "trl", "numpy", "vllm==0.6.3"
+         "transformers==4.46.0", "datasets", "accelerate", "wandb", "trl", "numpy", "vllm==0.6.3", "matplotlib"
     ])
 )
 
@@ -55,7 +55,7 @@ def generate_prefixes(split_solution: list[str]) -> list[str]:
     
     prefixes = []
 
-    for i in range(2, len(split_solution)):
+    for i in range(1, len(split_solution)):
         
         prefixes.append("\n".join(split_solution[:i]))
 
@@ -191,17 +191,42 @@ def generate_rollouts():
             print(f" p-hat max so far     :{np.max(p_hat_vals):.2f}")
             print(f"-------------------------------------------")
 
-
     #save annotations
     prm_ds = Dataset.from_list(annotations)
     prm_ds.save_to_disk("/data/prm_annotations")
     volume.commit()
     print(f"Done. Total annotations: {len(prm_ds)}")
 
+@app.function(image=image, volumes={"/data": volume}, timeout=300)
+def plot_phat():
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from datasets import load_from_disk
+    import numpy as np
+
+    prm_annotations = load_from_disk("/data/prm_annotations")
+    labels = [example['label'] for example in prm_annotations]
+
+    print(f"Total annotations: {len(labels)}")
+    print(f"Mean p_hat:  {np.mean(labels):.3f}")
+    print(f"Std p_hat:   {np.std(labels):.3f}")
+    print(f"Min p_hat:   {np.min(labels):.3f}")
+    print(f"Max p_hat:   {np.max(labels):.3f}")
+
+    plt.figure(figsize=(8, 5))
+    plt.hist(labels, bins=20, edgecolor="black")
+    plt.xlabel("p_hat Values")
+    plt.ylabel("Frequency")
+    plt.title("Distribution of p_hat values")
+    plt.savefig("/data/phat_distribution.png")
+    volume.commit()
+    print("Plot saved to /data/phat_distribution.png")
+
 
 @app.local_entrypoint()
 def main():
     #evaluate_sft.remote()
-    generate_rollouts.remote()
-
+    #generate_rollouts.remote()
+    plot_phat.remote()
                 
